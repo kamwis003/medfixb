@@ -1,0 +1,36 @@
+# Dependencies
+node_modules
+pnpm-lock.yaml
+
+# Build output
+dist
+build
+
+# Generated files
+generated
+prisma/migrations
+
+# Cache and logs
+.cache
+*.log
+
+# Environment
+.env
+.env.*
+
+# VSCode
+.vscode
+
+# AI
+.ai
+
+# Coverage
+coverage
+
+# Documentation
+*.md
+LICENSE
+
+# Config files
+package-lock.json
+yarn.lock

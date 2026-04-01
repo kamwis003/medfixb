@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public"]
+}
+
+model Profile {
+  id               String        @id @default(uuid())
+  firstName        String        @map("first_name")
+  lastName         String        @map("last_name")
+  role             Role          @default(USER)
+  stripeCustomerId String?       @unique @map("stripe_customer_id")
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  userProducts     UserProduct[]
+  diaryEntries     DiaryEntry[]  @relation("ProfileDiaryEntries")
+  articles         EndometriosisArticle[] @relation("ProfileEndometriosisArticles")
+
+  @@map("profiles")
+  @@schema("public")
+}
+
+model Product {
+  id              String        @id @default(cuid(2))
+  name            Json
+  description     Json
+  slug            String        @unique
+  priceCents      Int           @map("price_cents")
+  status          ProductStatus @default(ACTIVE)
+  stripeProductId String        @unique @map("stripe_product_id")
+  stripePriceId   String        @unique @map("stripe_price_id")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  userProducts    UserProduct[]
+
+  @@map("products")
+  @@schema("public")
+}
+
+model UserProduct {
+  id        String             @id @default(cuid(2))
+  userId    String             @map("user_id")
+  productId String             @map("product_id")
+  createdAt DateTime           @default(now()) @map("created_at")
+  status    SubscriptionStatus @default(ACTIVE)
+  product   Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      Profile            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([productId])
+  @@map("user_products")
+  @@schema("public")
+}
+
+model DiaryEntry {
+  id                    String   @id @default(uuid())
+  userId                String   @map("user_id")
+  date                  DateTime @db.Timestamptz(6)
+  painLevel             Int      @map("pain_level")
+  painLocation          String   @map("pain_location")
+  symptoms              String
+  hadSurgeryLast6Months Boolean  @map("had_surgery_last_6_months")
+  surgeryDescription    String?  @map("surgery_description")
+  hormonalTreatment     Boolean  @map("hormonal_treatment")
+  recentImaging         Boolean  @map("recent_imaging")
+  cycleDay              Int?     @map("cycle_day")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user                  Profile  @relation("ProfileDiaryEntries", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("diary_entries")
+  @@schema("public")
+}
+
+model EndometriosisArticle {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  content   String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user Profile @relation("ProfileEndometriosisArticles", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("endometriosis_articles")
+  @@schema("public")
+}
+
+enum Role {
+  ADMIN
+  USER
+
+  @@map("roles")
+  @@schema("public")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  CANCELED
+
+  @@map("subscription_statuses")
+  @@schema("public")
+}
+
+enum ProductStatus {
+  ACTIVE
+  ARCHIVED
+  DISCONTINUED
+
+  @@map("product_statuses")
+  @@schema("public")
+}
