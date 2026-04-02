@@ -59,18 +59,45 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
     return next(new AppError('Invalid token or user does not exist', 401))
   }
 
-  // If the token is valid, find the corresponding user in our own database
-  const internalUser = await prisma.profile.findUnique({
+  // If the token is valid, find or auto-create the corresponding profile in our database
+  let internalUser = await prisma.profile.findUnique({
     where: { id: supabaseUser.id },
   })
 
   if (!internalUser) {
-    logger.warn('Authentication failed: User not found in database', {
+    logger.info('Profile not found for Supabase user, auto-provisioning', {
       supabaseUserId: supabaseUser.id,
       path: req.path,
       method: req.method,
     })
-    return next(new AppError('User not found in our system', 401))
+
+    const metadata = (supabaseUser.user_metadata ?? {}) as Record<string, unknown>
+    const firstName = typeof metadata['firstName'] === 'string' ? metadata['firstName'] : ''
+    const lastName = typeof metadata['lastName'] === 'string' ? metadata['lastName'] : ''
+
+    try {
+      internalUser = await prisma.profile.create({
+        data: {
+          id: supabaseUser.id,
+          firstName,
+          lastName,
+        },
+      })
+    } catch (createError) {
+      logger.error('Failed to auto-provision profile', {
+        supabaseUserId: supabaseUser.id,
+        error: createError,
+        path: req.path,
+        method: req.method,
+      })
+      return next(new AppError('Failed to provision user profile', 500))
+    }
+
+    logger.info('Profile auto-provisioned successfully', {
+      userId: internalUser.id,
+      path: req.path,
+      method: req.method,
+    })
   }
 
   // Attach cleaned Supabase user
