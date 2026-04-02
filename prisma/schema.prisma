@@ -19,6 +19,7 @@ model Profile {
   userProducts     UserProduct[]
   diaryEntries     DiaryEntry[]  @relation("ProfileDiaryEntries")
   articles         EndometriosisArticle[] @relation("ProfileEndometriosisArticles")
+  consultationRequests ConsultationRequest[] @relation("PatientConsultationRequests")
 
   @@map("profiles")
   @@schema("public")
@@ -116,5 +117,31 @@ enum ProductStatus {
   DISCONTINUED
 
   @@map("product_statuses")
+  @@schema("public")
+}
+
+model ConsultationRequest {
+  id              String                    @id @default(uuid())
+  patientId       String                    @map("patient_id")
+  doctorId        String?                   @map("doctor_id")
+  description     String
+  status          ConsultationRequestStatus @default(PENDING)
+  rejectionReason String?                   @map("rejection_reason")
+  createdAt       DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  patient Profile @relation("PatientConsultationRequests", fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("consultation_requests")
+  @@schema("public")
+}
+
+enum ConsultationRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+
+  @@map("consultation_request_statuses")
   @@schema("public")
 }
