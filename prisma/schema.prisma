@@ -124,8 +124,10 @@ enum ProductStatus {
 model ConsultationRequest {
   id              String                    @id @default(uuid())
   patientId       String                    @map("patient_id")
+  specialistType  SpecialistType            @default(GYNECOLOGIST) @map("specialist_type")
   doctorId        String?                   @map("doctor_id")
-  description     String
+  description     String?
+  consentGiven    Boolean                   @default(false) @map("consent_given")
   status          ConsultationRequestStatus @default(PENDING)
   rejectionReason String?                   @map("rejection_reason")
   createdAt       DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -144,5 +146,14 @@ enum ConsultationRequestStatus {
   REJECTED
 
   @@map("consultation_request_statuses")
+  @@schema("public")
+}
+
+enum SpecialistType {
+  GYNECOLOGIST
+  FERTILITY_SPECIALIST
+  ENDOCRINOLOGIST
+
+  @@map("specialist_types")
   @@schema("public")
 }
