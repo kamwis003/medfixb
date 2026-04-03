@@ -2,6 +2,14 @@ import { prisma } from '@/data/data-sources/postgresql/prisma-client'
 
 export async function listProfiles() {
   return prisma.profile.findMany({
+    where: { role: 'USER' },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      createdAt: true,
+    },
     orderBy: [{ createdAt: 'desc' }]
   })
 }

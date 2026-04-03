@@ -4,6 +4,7 @@ import {
   createConsultationRequestController,
   getMyConsultationRequestsController,
   getAllConsultationRequestsController,
+  updateConsultationRequestStatusController,
   acceptConsultationRequestController,
   rejectConsultationRequestController,
 } from '../../../controllers/consultation-requests-controller'
@@ -26,12 +27,18 @@ const router = Router()
  *           schema:
  *             type: object
  *             required:
- *               - description
+ *               - specialistType
+ *               - consentGiven
  *             properties:
- *               description:
+ *               specialistType:
  *                 type: string
+ *                 enum: [gynecologist, fertility_specialist, endocrinologist]
  *               doctorId:
  *                 type: string
+ *               description:
+ *                 type: string
+ *               consentGiven:
+ *                 type: boolean
  *     responses:
  *       201:
  *         description: Consultation request created
@@ -40,14 +47,14 @@ const router = Router()
  *       401:
  *         description: Unauthorized
  *   get:
- *     summary: Get all consultation requests (admin/clinic only)
+ *     summary: Get all consultation requests (admin only)
  *     security:
  *       - bearerAuth: []
  *     tags:
  *       - ConsultationRequests
  *     responses:
  *       200:
- *         description: List of all consultation requests
+ *         description: List of all consultation requests with patient data
  *       401:
  *         description: Unauthorized
  *       403:
@@ -75,9 +82,52 @@ router.get('/my', requireAuth, getMyConsultationRequestsController)
 
 /**
  * @swagger
+ * /api/v1/consultation-requests/{id}:
+ *   patch:
+ *     summary: Update consultation request status (admin only)
+ *     security:
+ *       - bearerAuth: []
+ *     tags:
+ *       - ConsultationRequests
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [accepted, rejected]
+ *               rejectionReason:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Consultation request updated
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Not found
+ */
+router.patch('/:id', requireAuth, updateConsultationRequestStatusController)
+
+/**
+ * @swagger
  * /api/v1/consultation-requests/{id}/accept:
  *   patch:
- *     summary: Accept a consultation request (admin/clinic only)
+ *     summary: Accept a consultation request (admin only)
  *     security:
  *       - bearerAuth: []
  *     tags:
@@ -104,7 +154,7 @@ router.patch('/:id/accept', requireAuth, acceptConsultationRequestController)
  * @swagger
  * /api/v1/consultation-requests/{id}/reject:
  *   patch:
- *     summary: Reject a consultation request (admin/clinic only)
+ *     summary: Reject a consultation request (admin only)
  *     security:
  *       - bearerAuth: []
  *     tags:

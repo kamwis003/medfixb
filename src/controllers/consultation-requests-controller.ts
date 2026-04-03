@@ -6,12 +6,14 @@ import {
   createConsultationRequest,
   getMyConsultationRequests,
   getAllConsultationRequests,
+  updateConsultationRequestStatus,
   acceptConsultationRequest,
   rejectConsultationRequest,
 } from '../services/consultation-requests-service'
 import {
   createConsultationRequestSchema,
   rejectConsultationRequestSchema,
+  updateConsultationRequestStatusSchema,
 } from '../libs/zod/schemas/consultation-request-schema'
 
 export const createConsultationRequestController = asyncHandler(
@@ -58,6 +60,31 @@ export const getAllConsultationRequestsController = asyncHandler(
 
     const requests = await getAllConsultationRequests()
     return res.status(200).json({ success: true, data: requests })
+  }
+)
+
+export const updateConsultationRequestStatusController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const user = req.user
+    if (!user) {
+      throw new AppError('Unauthorized', 401)
+    }
+    if (user.role !== 'ADMIN') {
+      throw new ForbiddenError('Access denied', 'errors.forbidden')
+    }
+
+    const id = req.params['id'] as string
+
+    try {
+      const validatedData = updateConsultationRequestStatusSchema.parse(req.body)
+      const request = await updateConsultationRequestStatus(id, validatedData)
+      return res.status(200).json({ success: true, data: request })
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new BadRequestError('Validation failed', { errors: error.issues }, 'errors.validation_failed')
+      }
+      throw error
+    }
   }
 )
 

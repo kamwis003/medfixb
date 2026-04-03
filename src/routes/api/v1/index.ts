@@ -7,6 +7,7 @@ import { diaryEntriesRouter } from './diary-entries-route'
 import { endometriosisArticlesRouter } from './endometriosis-articles-route'
 import patientsRouter from "./patients-route"
 import { consultationRequestsRouter } from './consultation-requests-route'
+import { broadcastRouter } from './broadcast-route'
 
 const router: Router = express.Router()
 
@@ -18,5 +19,6 @@ router.use('/diary-entries', diaryEntriesRouter)
 router.use('/endometriosis-articles', endometriosisArticlesRouter)
 router.use("/patients", patientsRouter)
 router.use('/consultation-requests', consultationRequestsRouter)
+router.use('/broadcast', broadcastRouter)
 
 export default router
