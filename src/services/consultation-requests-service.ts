@@ -1,4 +1,5 @@
 import { prisma } from '@/data/data-sources/postgresql/prisma-client'
+import { SpecialistType, ConsultationRequestStatus } from 'generated/prisma/client'
 import type { ConsultationRequest, Profile } from 'generated/prisma/client'
 import { NotFoundError } from '@/utils/errors/app-errors'
 import { createLogger } from '@/utils/functions/logger'
@@ -51,7 +52,7 @@ export const consultationRequestsService: IConsultationRequestsService = {
     const request = await prisma.consultationRequest.create({
       data: {
         patientId,
-        specialistType: input.specialistType.toUpperCase() as 'GYNECOLOGIST' | 'FERTILITY_SPECIALIST' | 'ENDOCRINOLOGIST',
+        specialistType: SpecialistType[input.specialistType.toUpperCase() as keyof typeof SpecialistType],
         description: input.description ?? null,
         doctorId: input.doctorId ?? null,
         consentGiven: input.consentGiven,
@@ -85,7 +86,7 @@ export const consultationRequestsService: IConsultationRequestsService = {
       const updated = await prisma.consultationRequest.update({
         where: { id },
         data: {
-          status: input.status.toUpperCase() as 'ACCEPTED' | 'REJECTED',
+          status: ConsultationRequestStatus[input.status.toUpperCase() as keyof typeof ConsultationRequestStatus],
           rejectionReason: input.status === 'rejected' ? (input.rejectionReason ?? null) : null,
         },
       })

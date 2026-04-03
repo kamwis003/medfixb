@@ -17,6 +17,16 @@ export type BroadcastResult = {
   failed: number
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/\n/g, '<br>')
+}
+
 function createTransporter() {
   if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) {
     throw new AppError(
@@ -53,34 +63,37 @@ export async function broadcastEmail(input: BroadcastInput): Promise<BroadcastRe
 
   const transporter = createTransporter()
   const from = env.SMTP_FROM ?? env.SMTP_USER
+  const htmlBody = escapeHtml(body)
 
-  let sent = 0
-  let failed = 0
-
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     patients.map(async (patient) => {
       if (!patient.email) {
         logger.warn('Patient has no email, skipping', { patientId: patient.id })
-        failed++
-        return
+        throw new Error('No email address')
       }
 
-      try {
-        await transporter.sendMail({
-          from,
-          to: patient.email,
-          subject,
-          text: body,
-          html: body.replace(/\n/g, '<br>'),
-        })
-        logger.info('Broadcast email sent', { patientId: patient.id, email: patient.email })
-        sent++
-      } catch (error) {
-        logger.error('Failed to send broadcast email', { patientId: patient.id, error })
-        failed++
-      }
+      await transporter.sendMail({
+        from,
+        to: patient.email,
+        subject,
+        text: body,
+        html: htmlBody,
+      })
+      logger.info('Broadcast email sent', { patientId: patient.id, email: patient.email })
     })
   )
+
+  const sent = results.filter((r) => r.status === 'fulfilled').length
+  const failed = results.filter((r) => r.status === 'rejected').length
+
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      logger.error('Failed to send broadcast email', {
+        patientId: patients[index]?.id,
+        error: result.reason,
+      })
+    }
+  })
 
   logger.info('Broadcast complete', { sent, failed, total: patients.length })
   return { sent, failed }
