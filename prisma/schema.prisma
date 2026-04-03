@@ -10,6 +10,7 @@ datasource db {
 
 model Profile {
   id               String        @id @default(uuid())
+  email            String?       @unique @map("email")
   firstName        String        @map("first_name")
   lastName         String        @map("last_name")
   role             Role          @default(USER)
