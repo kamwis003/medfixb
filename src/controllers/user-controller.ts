@@ -8,19 +8,16 @@ import { BadRequestError } from '../utils/errors/app-errors'
 export const getUserController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const user = req.user!
-    const supabaseUser = req.supabaseUser!
     const userData = await userService.getUser(user.id)
-
-    const responseData = {
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      email: supabaseUser.email,
-      role: userData.role,
-    }
 
     res.status(200).json({
       success: true,
-      data: responseData,
+      data: {
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        role: userData.role,
+      },
     })
   }
 )
@@ -30,7 +27,6 @@ export const updateUserController = asyncHandler(
     try {
       const validatedData = updateUserProfileSchema.parse(req.body)
       const user = req.user!
-      const supabaseUser = req.supabaseUser!
 
       const updatedUser = await userService.updateUserProfile(
         user.id,
@@ -43,7 +39,7 @@ export const updateUserController = asyncHandler(
         data: {
           firstName: updatedUser.firstName,
           lastName: updatedUser.lastName,
-          email: supabaseUser.email,
+          email: updatedUser.email,
           role: updatedUser.role,
         },
       })

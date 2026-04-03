@@ -81,6 +81,7 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
           id: supabaseUser.id,
           firstName,
           lastName,
+          email: supabaseUser.email ?? null,
         },
       })
     } catch (createError) {
@@ -98,6 +99,22 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
       path: req.path,
       method: req.method,
     })
+  }
+
+  // Backfill email if missing (for existing profiles created before email field was added)
+  if (internalUser && !internalUser.email && supabaseUser.email) {
+    try {
+      internalUser = await prisma.profile.update({
+        where: { id: internalUser.id },
+        data: { email: supabaseUser.email },
+      })
+    } catch (backfillError) {
+      // Non-fatal: log and continue with the existing profile (e.g. unique constraint race)
+      logger.warn('Failed to backfill email for existing profile', {
+        userId: internalUser.id,
+        error: backfillError,
+      })
+    }
   }
 
   // Attach cleaned Supabase user
