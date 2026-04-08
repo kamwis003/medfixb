@@ -64,6 +64,10 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
     where: { id: supabaseUser.id },
   })
 
+  const metadata = (supabaseUser.user_metadata ?? {}) as Record<string, unknown>
+  const metaFirstName = typeof metadata['firstName'] === 'string' ? metadata['firstName'] : ''
+  const metaLastName = typeof metadata['lastName'] === 'string' ? metadata['lastName'] : ''
+
   if (!internalUser) {
     logger.info('Profile not found for Supabase user, auto-provisioning', {
       supabaseUserId: supabaseUser.id,
@@ -71,16 +75,12 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
       method: req.method,
     })
 
-    const metadata = (supabaseUser.user_metadata ?? {}) as Record<string, unknown>
-    const firstName = typeof metadata['firstName'] === 'string' ? metadata['firstName'] : ''
-    const lastName = typeof metadata['lastName'] === 'string' ? metadata['lastName'] : ''
-
     try {
       internalUser = await prisma.profile.create({
         data: {
           id: supabaseUser.id,
-          firstName,
-          lastName,
+          firstName: metaFirstName,
+          lastName: metaLastName,
           email: supabaseUser.email ?? null,
         },
       })
@@ -119,10 +119,6 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
 
   // Backfill firstName/lastName if missing (for existing profiles created without name metadata)
   if (internalUser && (!internalUser.firstName || !internalUser.lastName)) {
-    const metadata = (supabaseUser.user_metadata ?? {}) as Record<string, unknown>
-    const metaFirstName = typeof metadata['firstName'] === 'string' ? metadata['firstName'] : ''
-    const metaLastName = typeof metadata['lastName'] === 'string' ? metadata['lastName'] : ''
-
     const needsFirstName = !internalUser.firstName && metaFirstName
     const needsLastName = !internalUser.lastName && metaLastName
 
