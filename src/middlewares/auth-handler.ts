@@ -117,6 +117,37 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
     }
   }
 
+  // Backfill firstName/lastName if missing (for existing profiles created without name metadata)
+  if (internalUser && (!internalUser.firstName || !internalUser.lastName)) {
+    const metadata = (supabaseUser.user_metadata ?? {}) as Record<string, unknown>
+    const metaFirstName = typeof metadata['firstName'] === 'string' ? metadata['firstName'] : ''
+    const metaLastName = typeof metadata['lastName'] === 'string' ? metadata['lastName'] : ''
+
+    const needsFirstName = !internalUser.firstName && metaFirstName
+    const needsLastName = !internalUser.lastName && metaLastName
+
+    if (needsFirstName || needsLastName) {
+      try {
+        internalUser = await prisma.profile.update({
+          where: { id: internalUser.id },
+          data: {
+            ...(needsFirstName ? { firstName: metaFirstName } : {}),
+            ...(needsLastName ? { lastName: metaLastName } : {}),
+          },
+        })
+        logger.info('Backfilled firstName/lastName from Supabase metadata', {
+          userId: internalUser.id,
+        })
+      } catch (backfillError) {
+        // Non-fatal: log and continue with the existing profile
+        logger.warn('Failed to backfill firstName/lastName for existing profile', {
+          userId: internalUser.id,
+          error: backfillError,
+        })
+      }
+    }
+  }
+
   // Attach cleaned Supabase user
   req.supabaseUser = {
     email: supabaseUser.email,
