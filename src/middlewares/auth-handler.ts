@@ -64,6 +64,10 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
     where: { id: supabaseUser.id },
   })
 
+  const metadata = (supabaseUser.user_metadata ?? {}) as Record<string, unknown>
+  const metaFirstName = typeof metadata['firstName'] === 'string' ? metadata['firstName'] : ''
+  const metaLastName = typeof metadata['lastName'] === 'string' ? metadata['lastName'] : ''
+
   if (!internalUser) {
     logger.info('Profile not found for Supabase user, auto-provisioning', {
       supabaseUserId: supabaseUser.id,
@@ -71,16 +75,12 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
       method: req.method,
     })
 
-    const metadata = (supabaseUser.user_metadata ?? {}) as Record<string, unknown>
-    const firstName = typeof metadata['firstName'] === 'string' ? metadata['firstName'] : ''
-    const lastName = typeof metadata['lastName'] === 'string' ? metadata['lastName'] : ''
-
     try {
       internalUser = await prisma.profile.create({
         data: {
           id: supabaseUser.id,
-          firstName,
-          lastName,
+          firstName: metaFirstName,
+          lastName: metaLastName,
           email: supabaseUser.email ?? null,
         },
       })
@@ -114,6 +114,33 @@ export const requireAuth = asyncHandler(async (req: Request, res: Response, next
         userId: internalUser.id,
         error: backfillError,
       })
+    }
+  }
+
+  // Backfill firstName/lastName if missing (for existing profiles created without name metadata)
+  if (internalUser && (!internalUser.firstName || !internalUser.lastName)) {
+    const needsFirstName = !internalUser.firstName && metaFirstName
+    const needsLastName = !internalUser.lastName && metaLastName
+
+    if (needsFirstName || needsLastName) {
+      try {
+        internalUser = await prisma.profile.update({
+          where: { id: internalUser.id },
+          data: {
+            ...(needsFirstName ? { firstName: metaFirstName } : {}),
+            ...(needsLastName ? { lastName: metaLastName } : {}),
+          },
+        })
+        logger.info('Backfilled firstName/lastName from Supabase metadata', {
+          userId: internalUser.id,
+        })
+      } catch (backfillError) {
+        // Non-fatal: log and continue with the existing profile
+        logger.warn('Failed to backfill firstName/lastName for existing profile', {
+          userId: internalUser.id,
+          error: backfillError,
+        })
+      }
     }
   }
 
